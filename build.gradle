@@ -1,0 +1,41 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	mavenCentral()
+	maven {
+		name = 'Modrinth'
+		url = 'https://api.modrinth.com/maven'
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// The Ruby language adapter, resolved from the Modrinth maven.
+	implementation "maven.modrinth:fabric-language-ruby:${project.fabric_language_ruby_version}"
+	// Working against an unreleased build instead? Drop its jar into libs/ and
+	// use this line in place of the one above:
+	// implementation files("libs/fabric-language-ruby-${project.fabric_language_ruby_version}.jar")
+}
+
+processResources {
+	inputs.property 'version', project.version
+	filesMatching('fabric.mod.json') {
+		expand version: project.version
+	}
+}
+
+// This mod is written entirely in Ruby, so there is no Java to compile. The
+// scripts live in src/main/resources and are evaluated by fabric-language-ruby
+// when the game loads the mod.
