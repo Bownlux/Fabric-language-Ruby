@@ -2,8 +2,8 @@ name: Release
 
 # Bump mod_version in gradle.properties, then push a matching tag (e.g. v1.0.0)
 # to publish both variants to Modrinth and attach the jars to a GitHub release.
-# Requires the MODRINTH_TOKEN repository secret and modrinth_project_id in
-# gradle.properties.
+# Requires the AUTO_UPLOAD repository secret (a Modrinth token with the
+# "create version" scope) and modrinth_project_id in gradle.properties.
 
 on:
   push:
@@ -20,12 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify MODRINTH_TOKEN secret is configured
+      - name: Verify the Modrinth token secret is configured
         env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_TOKEN: ${{ secrets.AUTO_UPLOAD }}
         run: |
           if [ -z "$MODRINTH_TOKEN" ]; then
-            echo "::error::The MODRINTH_TOKEN repository secret is not configured"
+            echo "::error::The AUTO_UPLOAD repository secret is not configured"
             exit 1
           fi
 
@@ -50,7 +50,7 @@ jobs:
       - name: Publish to Modrinth (${{ matrix.variant }})
         run: ./gradlew publishMods --stacktrace -Pvariant=${{ matrix.variant }}
         env:
-          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_TOKEN: ${{ secrets.AUTO_UPLOAD }}
 
       - uses: actions/upload-artifact@v4
         with:
