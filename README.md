@@ -1,7 +1,7 @@
 # Ruby Example Mod
 
 A template for writing Fabric mods entirely in **Ruby**, powered by
-[fabric-language-ruby](https://github.com/Bownlux/MC-language-Ruby). There is no Java code in this
+[fabric-language-ruby](https://github.com/Bownlux/Fabric-language-Ruby). There is no Java code in this
 project: the mod is a handful of Ruby scripts plus a `fabric.mod.json`.
 
 The example registers a `main` entrypoint that logs on startup, listens for the server-started
@@ -24,7 +24,7 @@ see: `Hello from Ruby 3.4.5!`
 
 To install the built jar on a real server or client, put it in `mods/` together with
 `fabric-language-ruby` (from [Modrinth](https://modrinth.com/mod/fabric-language-ruby) or the
-[releases page](https://github.com/Bownlux/MC-language-Ruby/releases)) and Fabric API.
+[releases page](https://github.com/Bownlux/Fabric-language-Ruby/releases)) and Fabric API.
 
 ## Project layout
 
@@ -49,7 +49,7 @@ The entrypoint declaration is the interesting part of `fabric.mod.json`:
 
 The script's last expression (the `RubyExampleMod` class) becomes the entrypoint, and its
 `on_initialize` method implements `ModInitializer#onInitialize`. See the
-[fabric-language-ruby documentation](https://github.com/Bownlux/MC-language-Ruby#for-mod-developers)
+[fabric-language-ruby documentation](https://github.com/Bownlux/Fabric-language-Ruby#for-mod-developers)
 for all supported entrypoint forms and the Java interop guide.
 
 ## Making it your own
