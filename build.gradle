@@ -1,0 +1,184 @@
+plugins {
+	id 'java-library'
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'me.modmuss50.mod-publish-plugin' version "${publish_plugin_version}"
+	id 'maven-publish'
+}
+
+// Two release variants are built from this one source tree:
+//   modern (default): bundles JRuby 10, Java 21+ bytecode, for Minecraft 1.20.5+
+//   legacy:           bundles JRuby 9.4, Java 8+ bytecode, for Minecraft 1.14-1.20.4
+// Select with: ./gradlew build -Pvariant=legacy
+def variant = (findProperty('variant') ?: 'modern').toString()
+if (!(variant in ['modern', 'legacy'])) {
+	throw new GradleException("Unknown variant '${variant}' (expected 'modern' or 'legacy')")
+}
+def modernVariant = variant == 'modern'
+def jrubyVersion = modernVariant ? project.jruby_modern_version : project.jruby_legacy_version
+def javaMin = modernVariant ? 21 : 8
+
+version = "${project.mod_version}+jruby.${jrubyVersion}"
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	mavenCentral()
+}
+
+// Dependencies in this configuration are bundled jar-in-jar (include) AND exposed
+// to consumers' compile classpath / published POM (api), mirroring the
+// includeAndExpose pattern used by fabric-language-kotlin.
+configurations {
+	includeAndExpose
+	api {
+		extendsFrom includeAndExpose
+	}
+	include {
+		extendsFrom includeAndExpose
+	}
+}
+
+sourceSets {
+	testmod {
+		compileClasspath += sourceSets.main.compileClasspath
+		runtimeClasspath += sourceSets.main.runtimeClasspath
+	}
+}
+
+loom {
+	mods {
+		"fabric-language-ruby" {
+			sourceSet sourceSets.main
+		}
+		"ruby-example-mod" {
+			sourceSet sourceSets.testmod
+		}
+	}
+	runs {
+		testmodServer {
+			server()
+			name "Testmod Server"
+			source sourceSets.testmod
+			ideConfigGenerated false
+			// Full JRuby native IO integration + silence JDK warnings; JRuby
+			// degrades gracefully without these, so they are dev-only niceties.
+			vmArg "--enable-native-access=ALL-UNNAMED"
+			vmArg "--sun-misc-unsafe-memory-access=allow"
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// jruby-core is the self-contained (pre-shaded) runtime, jruby-stdlib holds the
+	// Ruby standard library under META-INF/jruby.home. Neither has transitive
+	// dependencies, which matters because Loom's include() is non-transitive.
+	includeAndExpose "org.jruby:jruby-core:${jrubyVersion}"
+	includeAndExpose "org.jruby:jruby-stdlib:${jrubyVersion}"
+
+	// Provided by Minecraft (1.18.2+) at runtime; the adapter guards its single
+	// log call so older versions just skip it.
+	compileOnly "org.slf4j:slf4j-api:${project.slf4j_version}"
+
+	testImplementation platform("org.junit:junit-bom:${project.junit_version}")
+	testImplementation "org.junit.jupiter:junit-jupiter"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+
+	testmodImplementation sourceSets.main.output
+	testmodImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+java {
+	sourceCompatibility = modernVariant ? JavaVersion.VERSION_21 : JavaVersion.VERSION_1_8
+	targetCompatibility = modernVariant ? JavaVersion.VERSION_21 : JavaVersion.VERSION_1_8
+	withSourcesJar()
+}
+
+compileJava {
+	options.release = javaMin
+}
+
+// Tests never ship, so they can use modern Java regardless of variant.
+compileTestJava {
+	options.release = 21
+}
+
+processResources {
+	inputs.property 'version', project.version
+	inputs.property 'java_min', javaMin
+	filesMatching('fabric.mod.json') {
+		expand version: project.version, java_min: javaMin
+	}
+}
+
+test {
+	useJUnitPlatform()
+	jvmArgs '--enable-native-access=ALL-UNNAMED', '--sun-misc-unsafe-memory-access=allow'
+}
+
+jar {
+	from('LICENSE') {
+		rename { "${it}_${project.archives_base_name}" }
+	}
+}
+
+// Standalone jar of the example mod, for testing the release artifact on a real server.
+tasks.register('testmodJar', Jar) {
+	from sourceSets.testmod.output
+	archiveClassifier = 'testmod'
+}
+
+assemble.dependsOn testmodJar
+
+// Blank-aware: GitHub Actions exports an EMPTY string for an unconfigured
+// secret, which must count as "no token" just like a truly unset variable.
+def modrinthToken = providers.environmentVariable('MODRINTH_TOKEN')
+		.map { it.trim() }.filter { !it.isEmpty() }
+
+// The plugin only validates the project id at upload time; fail fast instead
+// of dying halfway through a release.
+if (modrinthToken.present && !(project.modrinth_project_id ==~ /[0-9a-zA-Z]{8}/)) {
+	throw new GradleException("modrinth_project_id '${project.modrinth_project_id}' in gradle.properties is not a " +
+			"valid Modrinth project id (8 alphanumeric characters); set it before releasing")
+}
+
+publishMods {
+	file = jar.archiveFile
+	displayName = "${project.mod_version} (JRuby ${jrubyVersion}, MC ${modernVariant ? '1.20.5+' : '1.14-1.20.4'})"
+	version = project.version
+	changelog = providers.environmentVariable('CHANGELOG')
+			.orElse("See https://github.com/Bownlux/MC-language-Ruby/releases/tag/v${project.mod_version}")
+	type = STABLE
+	modLoaders.add('fabric')
+	// Without a token (local runs), validate the configuration instead of uploading.
+	dryRun = !modrinthToken.present
+
+	modrinth {
+		projectId = project.modrinth_project_id
+		accessToken = modrinthToken
+		if (modernVariant) {
+			minecraftVersionRange {
+				start = '1.20.5'
+				end = 'latestRelease'
+			}
+		} else {
+			minecraftVersionRange {
+				start = '1.14'
+				end = '1.20.4'
+			}
+		}
+	}
+}
+
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			from components.java
+		}
+	}
+}

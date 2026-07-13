@@ -1,0 +1,28 @@
+{
+	"schemaVersion": 1,
+	"id": "fabric-language-ruby",
+	"version": "${version}",
+	"name": "Fabric Language Ruby",
+	"description": "Fabric language module for Ruby, powered by JRuby. Write your Fabric mods in Ruby!",
+	"authors": [
+		"Bownlux"
+	],
+	"contact": {
+		"issues": "https://github.com/Bownlux/MC-language-Ruby/issues",
+		"sources": "https://github.com/Bownlux/MC-language-Ruby"
+	},
+	"license": "MIT",
+	"icon": "assets/fabric-language-ruby/icon.png",
+	"languageAdapters": {
+		"ruby": "io.github.bownlux.language.ruby.RubyLanguageAdapter"
+	},
+	"depends": {
+		"fabricloader": ">=0.16.0",
+		"java": ">=${java_min}"
+	},
+	"custom": {
+		"modmenu": {
+			"badges": ["library"]
+		}
+	}
+}

@@ -1,0 +1,21 @@
+{
+	"schemaVersion": 1,
+	"id": "ruby-example-mod",
+	"version": "1.0.0",
+	"name": "Ruby Example Mod",
+	"description": "Example Fabric mod written entirely in Ruby, using fabric-language-ruby.",
+	"license": "MIT",
+	"entrypoints": {
+		"main": [
+			{
+				"adapter": "ruby",
+				"value": "ruby_example_mod/main.rb"
+			}
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.0",
+		"fabric-language-ruby": "*",
+		"fabric-api": "*"
+	}
+}

@@ -1,0 +1,77 @@
+name: Release
+
+# Bump mod_version in gradle.properties, then push a matching tag (e.g. v1.0.0)
+# to publish both variants to Modrinth and attach the jars to a GitHub release.
+# Requires the MODRINTH_TOKEN repository secret and modrinth_project_id in
+# gradle.properties.
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [modern, legacy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify MODRINTH_TOKEN secret is configured
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          if [ -z "$MODRINTH_TOKEN" ]; then
+            echo "::error::The MODRINTH_TOKEN repository secret is not configured"
+            exit 1
+          fi
+
+      - name: Verify tag matches mod_version
+        run: |
+          mod_version="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          if [ "$GITHUB_REF_NAME" != "v$mod_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match mod_version=$mod_version in gradle.properties"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build and test (${{ matrix.variant }})
+        run: ./gradlew build --stacktrace -Pvariant=${{ matrix.variant }}
+
+      - name: Publish to Modrinth (${{ matrix.variant }})
+        run: ./gradlew publishMods --stacktrace -Pvariant=${{ matrix.variant }}
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.variant }}
+          path: |
+            build/libs/*.jar
+            !build/libs/*-testmod.jar
+
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: jars
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: jars/*.jar
+          generate_release_notes: true
