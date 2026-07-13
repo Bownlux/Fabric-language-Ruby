@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 170" role="img" aria-label="Fabric Language Ruby">
+  <!-- Faceted ruby gem, same geometry and palette as the mod icon -->
+  <g>
+    <polygon points="48,33 102,33 90,69 60,69" fill="#ec4064"/>
+    <polygon points="15,69 48,33 60,69" fill="#c4163c"/>
+    <polygon points="102,33 135,69 90,69" fill="#9b0a2c"/>
+    <polygon points="15,69 60,69 75,138" fill="#ac1034"/>
+    <polygon points="60,69 90,69 75,138" fill="#db2c54"/>
+    <polygon points="90,69 135,69 75,138" fill="#8c0626"/>
+    <polygon points="53,37 69,37 62,48" fill="#ffa8be"/>
+  </g>
+  <g font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="172" y="66" font-size="23" font-weight="600" letter-spacing="7" fill="#8a8a92">FABRIC LANGUAGE</text>
+    <text x="170" y="132" font-size="62" font-weight="800" fill="#c4163c">Ruby</text>
+  </g>
+</svg>

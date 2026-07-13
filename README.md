@@ -1,6 +1,8 @@
-# Fabric Language Ruby
+<div align="center">
+  <img src="assets/logo.svg" alt="Fabric Language Ruby" width="480">
 
 [![Build](https://github.com/Bownlux/MC-language-Ruby/actions/workflows/build.yml/badge.svg)](https://github.com/Bownlux/MC-language-Ruby/actions/workflows/build.yml)
+</div>
 
 Write Fabric mods in **Ruby**! This is a [Fabric](https://fabricmc.net/) language module, the Ruby
 equivalent of [fabric-language-kotlin](https://github.com/FabricMC/fabric-language-kotlin). It is
@@ -41,6 +43,11 @@ release. Install the one matching your Minecraft version:
 Both are the same mod (`fabric-language-ruby`, same features, same adapter); they differ only in the
 bundled JRuby, because JRuby 10 needs Java 21 while older Minecraft runs on Java 8-17. Modrinth
 serves the right file for your game version automatically. Fabric Loader 0.16.0+ is required.
+
+Fabric Language Ruby is fully compatible with
+[fabric-language-kotlin](https://github.com/FabricMC/fabric-language-kotlin): both language modules
+can be installed at the same time, so Ruby mods run alongside Kotlin mods in one modpack. This is
+verified in testing by running both adapters plus a Kotlin-written mod (Ledger) on one server.
 
 ## For players
 
