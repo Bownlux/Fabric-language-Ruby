@@ -1,7 +1,7 @@
 <div align="center">
   <img src="assets/logo.svg" alt="Fabric Language Ruby" width="480">
 
-[![Build](https://github.com/Bownlux/MC-language-Ruby/actions/workflows/build.yml/badge.svg)](https://github.com/Bownlux/MC-language-Ruby/actions/workflows/build.yml)
+[![Build](https://github.com/Bownlux/Fabric-language-Ruby/actions/workflows/build.yml/badge.svg)](https://github.com/Bownlux/Fabric-language-Ruby/actions/workflows/build.yml)
 </div>
 
 Write Fabric mods in **Ruby**! This is a [Fabric](https://fabricmc.net/) language module, the Ruby
@@ -52,7 +52,7 @@ verified in testing by running both adapters plus a Kotlin-written mod (Ledger) 
 ## For players
 
 If a mod you installed needs this library, download the file matching your Minecraft version from
-Modrinth (or the [GitHub releases](https://github.com/Bownlux/MC-language-Ruby/releases)) and drop
+Modrinth (or the [GitHub releases](https://github.com/Bownlux/Fabric-language-Ruby/releases)) and drop
 it into your `mods/` folder, next to the mod that needs it. There is no configuration.
 
 ## For mod developers

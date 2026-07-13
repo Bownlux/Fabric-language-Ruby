@@ -152,7 +152,7 @@ publishMods {
 	displayName = "${project.mod_version} (JRuby ${jrubyVersion}, MC ${modernVariant ? '1.20.5+' : '1.14-1.20.4'})"
 	version = project.version
 	changelog = providers.environmentVariable('CHANGELOG')
-			.orElse("See https://github.com/Bownlux/MC-language-Ruby/releases/tag/v${project.mod_version}")
+			.orElse("See https://github.com/Bownlux/Fabric-language-Ruby/releases/tag/v${project.mod_version}")
 	type = STABLE
 	modLoaders.add('fabric')
 	// Without a token (local runs), validate the configuration instead of uploading.
