@@ -239,29 +239,6 @@ example-mod jar (`*-testmod.jar`). JRuby is bundled jar-in-jar (`org.jruby:jruby
 `org.jruby:jruby-stdlib`); Fabric Loader deduplicates nested jars by version if several installed
 mods ship JRuby.
 
-## Releasing (CI)
-
-GitHub Actions is set up for both CI and publishing:
-
-- **[build.yml](.github/workflows/build.yml)** builds and tests both variants on every push and
-  pull request.
-- **[release.yml](.github/workflows/release.yml)** runs when a tag like `v1.0.0` is pushed. It
-  builds both variants, publishes them to **Modrinth** (the modern file for MC 1.20.5+, the legacy
-  file for MC 1.14-1.20.4), and attaches the jars to a GitHub release.
-
-One-time setup for Modrinth publishing:
-
-1. Create the project on [modrinth.com](https://modrinth.com/) and copy its **project id**, an
-   8-character string, into `modrinth_project_id` in [`gradle.properties`](gradle.properties). You
-   can find the id in the project page's "..." menu under *Copy ID*, or under *Technical
-   information* at the bottom of the page.
-2. Create a Modrinth personal access token (under PATs in your user settings) with the *create
-   version* scope and add it as a repository secret named `MODRINTH_TOKEN` on GitHub.
-3. Bump `mod_version` in `gradle.properties`, commit, and push a matching tag:
-   `git tag v1.0.0 && git push origin v1.0.0`.
-
-Without `MODRINTH_TOKEN`, `./gradlew publishMods` runs in dry-run mode, so the configuration can be
-tested locally.
 
 ## Versioning
 
