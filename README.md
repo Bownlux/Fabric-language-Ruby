@@ -164,19 +164,49 @@ require 'json'
 require_relative 'helper'
 ```
 
-Installing gems at runtime is **not** supported (the stdlib lives inside a jar). Single-file
-pure-Ruby libraries can be vendored into your resources and loaded with `require_relative`.
-Multi-file gems use absolute `require`s internally, which resolve against `$LOAD_PATH`, so add
-your vendor directory to it first, using the `uri:classloader:` scheme (all mod resources are on
-the shared classpath):
+### Using gems (build-time vendoring)
 
-```ruby
-$LOAD_PATH.unshift 'uri:classloader:/my_ruby_mod/vendor'
-require 'some_gem'   # loads my_ruby_mod/vendor/some_gem.rb and its internal requires
+Installing gems at runtime is **not** supported (the stdlib lives inside a jar), but gems can be
+vendored into your mod while it is being built. This repository ships a Gradle helper,
+[`gradle/gem-vendor.gradle`](gradle/gem-vendor.gradle), that runs the whole pipeline: it resolves
+the gems you list (plus their transitive dependencies) from rubygems.org using a build-time JRuby,
+copies each resolved gem into your mod's resources, and generates a `vendor/setup.rb` that puts
+every gem on `$LOAD_PATH` with the `uri:classloader:` scheme.
+
+Copy the file into your project and wire it up in `build.gradle`:
+
+```groovy
+apply from: 'gradle/gem-vendor.gradle'
+
+gemVendor {
+    vendorPath = 'my_ruby_mod/vendor'   // resource path the gems land under
+    gem 'dentaku', '3.5.7'
+    // more gem 'name', 'version' lines as needed; transitive dependencies
+    // are resolved automatically, list one explicitly to pin its version
+}
 ```
 
-Gems with C extensions, and gems that read or write their own files on disk, will not work from
-inside a jar.
+Then load the gems from your script with a plain `require`:
+
+```ruby
+require_relative 'vendor/setup'
+require 'dentaku'
+```
+
+What can and cannot work:
+
+- Pure-Ruby gems work, and so do gems that ship a prebuilt JRuby jar (concurrent-ruby, for
+  example). Gems with C extensions fail at install time, which is the right moment to find out.
+- Gems that read or write their own files on disk will not work from inside a jar.
+- Vendoring redistributes the gems inside your jar. Check that each gem's license permits that
+  and attribute it as the license requires.
+- If you release for both variants, build the vendor step per variant (the helper uses the JRuby
+  version you give it), so gem resolution matches the Ruby version your users run.
+
+The example mod in [`src/testmod`](src/testmod) vendors dentaku this way, and every CI build
+exercises the pipeline on both variants. If you would rather vendor by hand, the generated
+`setup.rb` shows everything that is needed: each gem's require directory added to `$LOAD_PATH` as
+`uri:classloader:/<resource path>` (all mod resources are on the shared classpath).
 
 ### Calling Minecraft and Fabric API
 
@@ -216,15 +246,15 @@ libraries are unaffected and keep their normal names.
 
 - **No mixins from Ruby.** Mixins need compile-time classes; a Ruby mod that requires them should
   ship a small Java/mixin core alongside its Ruby entrypoints (both can live in one jar).
-- **No runtime gem installation**, as explained above.
+- **No runtime gem installation.** Vendor gems at build time instead, as explained above.
 - Scripts targeting the legacy file should stick to Ruby 3.1 features (the modern file runs
   Ruby 3.4).
 
 ## Example mod
 
 A complete working example lives in [`src/testmod`](src/testmod): a mod written entirely in Ruby
-that logs from its `main` entrypoint, uses `require`/`require_relative`, and registers a Fabric API
-lifecycle callback. Run it against a dev server with:
+that logs from its `main` entrypoint, uses `require`/`require_relative`, calls a vendored gem
+(dentaku), and registers a Fabric API lifecycle callback. Run it against a dev server with:
 
 ```bash
 ./gradlew runTestmodServer

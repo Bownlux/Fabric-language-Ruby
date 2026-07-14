@@ -93,6 +93,16 @@ dependencies {
 	testmodImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 }
 
+// The example mod vendors a real gem (with transitive dependencies) so that
+// every build exercises the build-time gem vendoring pipeline end to end.
+// Assigned property by property because the enclosing script defines a local
+// jrubyVersion variable that a configuration closure would shadow.
+apply from: 'gradle/gem-vendor.gradle'
+gemVendor.sourceSet = 'testmod'
+gemVendor.vendorPath = 'ruby_example_mod/vendor'
+gemVendor.jrubyVersion = jrubyVersion
+gemVendor.gem 'dentaku', project.dentaku_version
+
 java {
 	sourceCompatibility = modernVariant ? JavaVersion.VERSION_21 : JavaVersion.VERSION_1_8
 	targetCompatibility = modernVariant ? JavaVersion.VERSION_21 : JavaVersion.VERSION_1_8

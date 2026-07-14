@@ -1,0 +1,174 @@
+// Build-time vendoring of pure-Ruby gems into a Fabric mod's resources.
+//
+// Installing gems at runtime cannot work from inside a mod jar, so this script
+// resolves them while the mod is being built instead. It runs "gem install"
+// under a build-time JRuby (fetched from Maven Central), copies every resolved
+// gem into the mod's resources under a vendor directory, and generates a
+// setup.rb that puts each gem on $LOAD_PATH. Ruby entrypoints then load gems
+// with a plain require:
+//
+//     require_relative 'vendor/setup'
+//     require 'some_gem'
+//
+// Usage, in build.gradle (after the plugins block):
+//
+//     apply from: 'gradle/gem-vendor.gradle'
+//
+//     gemVendor {
+//         vendorPath = 'my_ruby_mod/vendor'   // resource path to vendor under
+//         gem 'some_gem', '1.2.3'
+//     }
+//
+// The consuming project must have mavenCentral() among its repositories, which
+// is where the build-time JRuby comes from. The gems themselves come from
+// rubygems.org, so the first build (and any build after changing the gem list)
+// needs network access. Run the pipeline on its own with: ./gradlew vendorGems
+//
+// Notes:
+//   - Only pure-Ruby gems (and gems that ship a prebuilt JRuby jar) can work.
+//     Gems with C extensions fail at install time, which is the right moment
+//     to find out.
+//   - Transitive gem dependencies are resolved and vendored automatically. To
+//     pin one, list it explicitly with its own gem 'name', 'version' line.
+//   - Vendoring redistributes the gems inside your jar. Check that each gem's
+//     license permits that and attribute it as the license requires.
+//   - Gems that read or write their own files on disk will still not work
+//     from inside a jar; see the fabric-language-ruby README.
+//   - This script uses execution-time project services and is therefore not
+//     compatible with the Gradle configuration cache.
+
+import javax.inject.Inject
+import org.gradle.api.file.FileSystemOperations
+import org.gradle.process.ExecOperations
+
+class GemVendorExtension {
+    /** Resource path the gems are vendored under, e.g. 'my_ruby_mod/vendor'. */
+    String vendorPath
+    /** Name of the source set whose resources receive the vendored gems. */
+    String sourceSet = 'main'
+    /** JRuby version used to run gem install at build time. Match it to the
+     *  fabric-language-ruby variant you target so gems resolve against the
+     *  same Ruby version they will run under. */
+    String jrubyVersion = '10.0.6.0'
+    Map<String, String> gems = [:]
+
+    void gem(String name, String version) {
+        gems[name] = version
+    }
+}
+
+// Injected services, used instead of the Project equivalents so the tasks do
+// not touch Project state at execution time.
+abstract class GemVendorServices {
+    @Inject
+    abstract ExecOperations getExecOperations()
+
+    @Inject
+    abstract FileSystemOperations getFileSystemOperations()
+}
+
+def gemVendor = project.extensions.create('gemVendor', GemVendorExtension)
+def services = project.objects.newInstance(GemVendorServices)
+
+def gemVendorTool = project.configurations.create('gemVendorTool') {
+    visible = false
+    canBeConsumed = false
+    description = 'The build-time JRuby that resolves gems for vendoring'
+}
+
+project.afterEvaluate {
+    if (gemVendor.gems.isEmpty() && !gemVendor.vendorPath) {
+        // The script was applied but not configured; do nothing.
+        return
+    }
+    if (gemVendor.gems.isEmpty() || !gemVendor.vendorPath) {
+        throw new GradleException('gemVendor needs both a vendorPath and at least one gem')
+    }
+    if (gemVendor.vendorPath.contains('..') || !(gemVendor.vendorPath ==~ /[A-Za-z0-9_][A-Za-z0-9_\-\/.]*/)) {
+        throw new GradleException("gemVendor.vendorPath '${gemVendor.vendorPath}' is not a valid resource path")
+    }
+
+    project.dependencies.add(gemVendorTool.name, "org.jruby:jruby-complete:${gemVendor.jrubyVersion}")
+
+    def installDir = project.layout.buildDirectory.dir('gem-vendor/install').get().asFile
+    def resourcesDir = project.layout.buildDirectory.dir('gem-vendor/resources').get().asFile
+    def vendorPath = gemVendor.vendorPath
+
+    // Runs the build-time JRuby with GEM_HOME/GEM_PATH pinned to the install
+    // directory, so the user's own gem environment never leaks in.
+    def jruby = { List<String> jrubyArgs, OutputStream stdout = null ->
+        services.execOperations.javaexec {
+            classpath = gemVendorTool
+            mainClass = 'org.jruby.Main'
+            jvmArgs '--enable-native-access=ALL-UNNAMED', '--sun-misc-unsafe-memory-access=allow'
+            environment 'GEM_HOME', installDir.path
+            environment 'GEM_PATH', installDir.path
+            args jrubyArgs
+            if (stdout != null) {
+                standardOutput = stdout
+            }
+        }
+    }
+
+    def installVendorGems = project.tasks.register('installVendorGems') {
+        group = 'build'
+        description = 'Resolves the gemVendor gems from rubygems.org into build/gem-vendor/install'
+        inputs.property 'gems', gemVendor.gems.collect { name, ver -> "${name}:${ver}" }.sort().join(' ')
+        inputs.property 'jrubyVersion', gemVendor.jrubyVersion
+        outputs.dir installDir
+        doLast {
+            // A clean install directory, so removed gems do not linger.
+            services.fileSystemOperations.delete { delete(installDir) }
+            def gemArgs = gemVendor.gems.collect { name, ver -> "${name}:${ver}".toString() }
+            jruby(['-S', 'gem', 'install', '--install-dir', installDir.path, '--no-document'] + gemArgs)
+        }
+    }
+
+    def vendorGems = project.tasks.register('vendorGems') {
+        group = 'build'
+        description = "Copies the resolved gems into resources under ${vendorPath} and generates setup.rb"
+        dependsOn installVendorGems
+        inputs.dir installDir
+        inputs.property 'vendorPath', vendorPath
+        outputs.dir resourcesDir
+        doLast {
+            // Ask RubyGems for each installed gem's require paths. Most gems
+            // use plain lib, but not all (concurrent-ruby, for example, uses
+            // lib/concurrent-ruby), so this cannot be hardcoded.
+            def manifestScript =
+                    'Gem::Specification.each { |s| puts "#{s.full_name}\t#{s.require_paths.join("\t")}" if s.gem_dir.start_with?(ARGV[0]) }'
+            def manifestOut = new ByteArrayOutputStream()
+            jruby(['-e', manifestScript, installDir.path], manifestOut)
+
+            def requirePaths = []
+            manifestOut.toString('UTF-8').readLines().findAll { it.contains('\t') }.sort().each { line ->
+                def parts = line.split('\t') as List
+                def fullName = parts.head()
+                parts.drop(1).each { rp -> requirePaths << "${fullName}/${rp}".toString() }
+            }
+            requirePaths = requirePaths.unique()
+            if (requirePaths.isEmpty()) {
+                throw new GradleException('Gem vendoring produced no require paths; the gem install output above should say why')
+            }
+
+            services.fileSystemOperations.sync {
+                from new File(installDir, 'gems')
+                into new File(resourcesDir, vendorPath)
+            }
+
+            def lines = []
+            lines << '# Generated by the vendorGems Gradle task. Do not edit.'
+            lines << '# Puts every vendored gem on $LOAD_PATH so a plain require finds it.'
+            lines << '['
+            requirePaths.each { lines << "  '${it}'," }
+            lines << '].each do |dir|'
+            lines << '  path = "uri:classloader:/' + vendorPath + '/#{dir}"'
+            lines << '  $LOAD_PATH.unshift(path) unless $LOAD_PATH.include?(path)'
+            lines << 'end'
+            new File(resourcesDir, "${vendorPath}/setup.rb").setText(lines.join('\n') + '\n', 'UTF-8')
+        }
+    }
+
+    def targetSourceSet = project.sourceSets.getByName(gemVendor.sourceSet)
+    targetSourceSet.resources.srcDir(project.files(resourcesDir).builtBy(vendorGems))
+}

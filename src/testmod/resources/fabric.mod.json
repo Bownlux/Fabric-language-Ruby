@@ -15,7 +15,9 @@
 	},
 	"depends": {
 		"fabricloader": ">=0.19.0",
-		"fabric-language-ruby": "*",
+		"fabric-language-ruby": "*"
+	},
+	"suggests": {
 		"fabric-api": "*"
 	}
 }
