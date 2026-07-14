@@ -4,6 +4,11 @@
 [![Build](https://github.com/Bownlux/Fabric-language-Ruby/actions/workflows/build.yml/badge.svg)](https://github.com/Bownlux/Fabric-language-Ruby/actions/workflows/build.yml)
 </div>
 
+
+
+
+## Made by Bownlux, A developer of RevivalSMP.net
+
 Write Fabric mods in **Ruby**! This is a [Fabric](https://fabricmc.net/) language module, the Ruby
 equivalent of [fabric-language-kotlin](https://github.com/FabricMC/fabric-language-kotlin). It is
 powered by an embedded [JRuby](https://www.jruby.org/) runtime that ships inside the mod jar
