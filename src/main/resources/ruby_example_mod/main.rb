@@ -6,6 +6,13 @@
 
 require 'java'
 
+# The build vendors the dentaku gem (a calculator, used by /rubyexample calc)
+# into vendor/ via the vendorGems Gradle task, and the generated setup.rb puts
+# it on $LOAD_PATH. See gradle/gem-vendor.gradle.
+require_relative 'vendor/setup'
+require 'dentaku'
+require 'bigdecimal'
+
 class RubyExampleMod
   # Importing inside the class keeps these constants out of the shared
   # top-level namespace (all Ruby mods run in one JRuby interpreter).
@@ -13,6 +20,7 @@ class RubyExampleMod
   java_import 'net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback'
   java_import 'net.minecraft.commands.Commands'
   java_import 'net.minecraft.network.chat.Component'
+  java_import 'com.mojang.brigadier.arguments.StringArgumentType'
 
   # slf4j ships with Minecraft 1.18.2+; on older versions use Log4j or puts.
   LOGGER = org.slf4j.LoggerFactory.getLogger('ruby-example-mod')
@@ -48,7 +56,27 @@ class RubyExampleMod
         1 # Brigadier commands return an int
       end
 
-      dispatcher.register(command)
+      # /rubyexample calc <expression> evaluates math with the vendored
+      # dentaku gem, for example: /rubyexample calc 2 + 3 * 4
+      calc = Commands.literal('calc').then(
+        Commands.argument('expression', StringArgumentType.greedy_string).executes do |context|
+          expression = StringArgumentType.get_string(context, 'expression')
+          result = Dentaku::Calculator.new.evaluate(expression)
+
+          if result.nil?
+            context.source.send_failure(Component.literal("Cannot evaluate: #{expression}"))
+            0
+          else
+            # BigDecimal#to_s defaults to scientific notation; 'F' keeps 3.5 as 3.5.
+            pretty = result.is_a?(BigDecimal) ? result.to_s('F') : result.to_s
+            message = -> { Component.literal("#{expression} = #{pretty}") }
+            context.source.send_success(message.to_java(java.util.function.Supplier), false)
+            1
+          end
+        end
+      )
+
+      dispatcher.register(command.then(calc))
     end
 
     CommandRegistrationCallback::EVENT.register(

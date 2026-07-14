@@ -29,6 +29,17 @@ dependencies {
 	// implementation files("libs/fabric-language-ruby-${project.fabric_language_ruby_version}.jar")
 }
 
+// Vendors pure-Ruby gems into the mod at build time; see gradle/gem-vendor.gradle
+// for how it works. The /rubyexample calc command uses dentaku, and main.rb loads
+// it through the generated vendor/setup.rb. Remove this block (and the requires
+// in main.rb) if your mod does not need gems.
+apply from: 'gradle/gem-vendor.gradle'
+
+gemVendor {
+	vendorPath = 'ruby_example_mod/vendor'
+	gem 'dentaku', '3.5.7'
+}
+
 processResources {
 	inputs.property 'version', project.version
 	filesMatching('fabric.mod.json') {

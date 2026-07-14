@@ -4,6 +4,9 @@ build/
 out/
 classes/
 
+# Local fabric-language-ruby builds for testing (see build.gradle)
+libs/
+
 # IDE
 .idea/
 *.iml
