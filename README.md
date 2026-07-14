@@ -9,6 +9,11 @@
 
 ## Made by Bownlux, A developer of RevivalSMP.net
 
+> **A note on updates:** big updates to this project will not come often, since most of my time
+> goes into [RevivalSMP.net](https://revivalsmp.net) and Retromod. Expect smaller maintenance
+> releases (new Minecraft versions, JRuby bumps, bug fixes) rather than a steady stream of
+> features. Issues and pull requests are still welcome.
+
 Write Fabric mods in **Ruby**! This is a [Fabric](https://fabricmc.net/) language module, the Ruby
 equivalent of [fabric-language-kotlin](https://github.com/FabricMC/fabric-language-kotlin). It is
 powered by an embedded [JRuby](https://www.jruby.org/) runtime that ships inside the mod jar
